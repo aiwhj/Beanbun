@@ -48,6 +48,9 @@ class Beanbun
         'afterDiscoverHooks',
         'stopWorkerHooks',
     ];
+    public $timer = null;
+    public $timerWorker = null;
+    
     public $startWorkerHooks = [];
     public $beforeDownloadPageHooks = [];
     public $downloadPageHooks = [];
@@ -203,6 +206,13 @@ class Beanbun
 
     public function initHooks()
     {
+		if ($this->timerWorker) {
+			$this->timer = function ($beanbun) {
+				if ($beanbun->worker->id == 0) {
+					call_user_func($this->timerWorker, $this);
+				}
+			};
+		}
         $this->startWorkerHooks[] = function ($beanbun) {
             $beanbun->id = $beanbun->worker->id;
             $beanbun->log("Beanbun worker {$beanbun->id} is starting ...");
@@ -357,9 +367,15 @@ class Beanbun
 
     public function onWorkerStop($worker)
     {
-        foreach ($this->stopWorkerHooks as $hook) {
-            call_user_func($hook, $this);
-        }
+        if ($this->worker->id > 0) {
+			foreach ($this->startWorkerHooks as $hook) {
+				call_user_func($hook, $this);
+			}
+		} else {
+			if ($this->timer) {
+				call_user_func($this->timer, $this);
+			}
+		}
     }
 
     public function defaultExceptionHandler(Exception $e)
